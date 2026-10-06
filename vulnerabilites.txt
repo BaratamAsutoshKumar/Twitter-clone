@@ -1,0 +1,10 @@
+3. Inject the Vulnerabilities
+Because this new repository uses professional API Controllers, we will inject the vulnerabilities into a dedicated file.
+
+Open the project in VS Code (code .).
+
+In the file explorer on the left, locate the API backend folder (likely named WebAPI or TwitterClone.WebApi).
+
+Inside its Controllers folder, create a new file named InsecureProfileController.cs
+
+Paste this code into it:

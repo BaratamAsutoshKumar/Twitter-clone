@@ -12,3 +12,11 @@ git remote add origin https://github.com/BaratamAsutoshKumar/Twitter-clone.git
 git add .
 git commit -m "Overwrite repository with full C# Twitter Clone architecture"
 git push -u origin main --force
+
+
+the main branch has the clean code 
+
+
+and making a vulnerable branch to deliberately add vulnerabilites
+
+git checkout -b vulnerable-sast-demo
