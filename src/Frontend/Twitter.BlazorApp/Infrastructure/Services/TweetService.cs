@@ -1,0 +1,122 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using Twitter.BlazorApp.Infrastructure.Models.Dtos;
+using Twitter.BlazorApp.Infrastructure.Models.Dvos;
+using Twitter.BlazorApp.Infrastructure.Services.Interfaces;
+using Twitter.BlazorApp.Layout;
+using Twitter.BlazorApp.Pagination;
+
+namespace Twitter.BlazorApp.Infrastructure.Services;
+
+public class TweetService : ITweetService
+{
+    private HttpClient _client;
+
+    public TweetService(HttpClient client)
+    {
+        _client = client;
+    }
+
+    public Task<List<TweetDvo>> GetTweets()
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<TweetDvo> GetTweet(string tweetId)
+    {
+        var response = await _client.GetAsync($"/api/tweets/{tweetId}");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        var dvo = JsonSerializer.Deserialize<TweetDvo>(json);
+
+        return dvo;
+    }
+
+    public async Task<PagedViewModel<TweetDvo>> GetMainPageTweets(int page, int pageSize)
+    {
+        Console.WriteLine("Starting getmainpage...");
+
+        var response = await _client.GetAsync($"/api/tweets/feed?page={page}&pageSize={pageSize}");
+
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        Console.WriteLine(json);
+
+
+        var dvo = JsonSerializer.Deserialize<PagedViewModel<TweetDvo>>(json);
+
+        Console.WriteLine("done get main page..." + dvo.Results.Count);
+
+        return dvo;
+    }
+
+    public async Task<UserTweetsDvo> GetUserTweets(int page = 1, int pageSize= 10, string? userName = null)
+    {
+        if (userName == null)
+            return null;
+                
+        var response = await _client.GetAsync($"/api/tweets/by-user/{userName}?page=1&pageSize=10");
+        response.EnsureSuccessStatusCode();
+        
+        var json = await response.Content.ReadAsStringAsync();
+        var dvo = JsonSerializer.Deserialize<UserTweetsDvo>(json);
+
+        
+        
+        return dvo;
+    }
+
+    public async Task<List<TweetDvo>> GetTweetReplies(string tweetId, int page, int pageSize)
+    {
+        var response = await _client.GetAsync($"/api/tweets/{tweetId}/replies");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        var dvo = JsonSerializer.Deserialize<List<TweetDvo>>(json);
+
+        return dvo;
+    }
+
+    public async Task<TweetLikeDvo> GetTweetLikes(string tweetId)
+    {
+        var response = await _client.GetAsync($"/api/tweets/{tweetId}/likes");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        var dvo = JsonSerializer.Deserialize<TweetLikeDvo>(json);
+
+        return dvo;
+    }
+
+    public async Task<Guid> CreateTweet(CreateTweetDto command)
+    {
+        var response = await _client.PostAsJsonAsync("/api/tweets", command);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            throw new Exception($"API Error: {response.StatusCode} - {error}");
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<CreateTweetResponse>();
+        return result.Id;
+    }
+
+    public async Task<HashtagTweetDvo> GetHashtagTweets(string tag)
+    {
+        var response = await _client.GetAsync($"/api/hashtags/by-tag/{tag}");
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        var dvo = JsonSerializer.Deserialize<HashtagTweetDvo>(json);
+
+        return dvo;
+    }
+}

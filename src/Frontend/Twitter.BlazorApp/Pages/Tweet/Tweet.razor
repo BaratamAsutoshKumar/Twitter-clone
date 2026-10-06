@@ -1,0 +1,217 @@
+@page "/tweet/{id}"
+
+@inject NavigationManager Navigation
+
+
+@using Twitter.BlazorApp.Infrastructure.Services.Interfaces
+@using Twitter.BlazorApp.Infrastructure.Models.ViewModels
+
+<div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <button class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200" onclick="history.back()">
+        <svg viewBox="0 0 24 24" aria-hidden="true" class="h-5 w-5 text-gray-700 dark:text-gray-300">
+            <g>
+                <path d="M7.414 12L12.707 6.707 11.293 5.293 4.586 12l6.707 6.707 1.414-1.414L7.414 12z"></path>
+            </g>
+        </svg>
+    </button>
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white flex-grow text-center">Tweet</h2>
+    <div class="w-8"></div>
+</div>
+
+<div class="hover:bg-black/10 dark:hover:bg-white/[0.03] cursor-pointer transition ease-in-out py-3 w-full flex flex-col gap-2 p-3 border-gray-500/40 border-b-[0.1px]">
+    <div class="flex px-2 items-start gap-4">
+        <a href="@($"/user/{tweetViewModel.Username}")">
+
+            <div class="w-14 h-14">
+                <img src="@tweetViewModel.ProfilePic" alt="@($"/user/{tweetViewModel.Username}/profile_pic")" class="w-full h-full object-cover rounded-full"/>
+            </div>
+        </a>
+        <div class="flex flex-col">
+            <div class="flex gap-1">
+                <div class="font-semibold flex gap-3 items-center">
+                    <a href="@($"/user/{tweetViewModel.Username}")">
+                        <h2>@tweetViewModel.ProfileName</h2>
+                    </a>
+                </div>
+                <p class="opacity-50">@($"@{tweetViewModel.Username}")</p>
+                <p class="opacity-50">· @tweetViewModel.Time</p>
+            </div>
+            <p>@tweetViewModel.Content</p>
+        </div>
+    </div>
+
+    <a href="@($"/tweet/{tweetViewModel.Id}")" class="text-gray-800 no-underline hover:text-gray-800 hover:underline-0 cursor-pointer">
+
+        <div class="p-3 self-center sm:w-[85%] h-auto">
+            <img src="@tweetViewModel.MediaUrl" alt="" class="object-cover rounded-2xl max-w-[100%] h-auto"/>
+        </div>
+
+
+        <div class="flex justify-between sm:w-[80%] w-[95%] self-center text-gray-600 text-sm mt-2">
+
+            <!-- Replies Button -->
+            <button @onclick="ShowReplies" class="flex items-center gap-1 hover:text-blue-500 transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 fill-current" viewBox="0 0 20 20">
+                    <path d="M2 5a2 2 0 012-2h12a2 2 0 012 2v9a2 2 0 01-2 2H7l-5 4V5z"/>
+                </svg>
+                <span>@tweetViewModel.RepliesCount</span>
+            </button>
+
+            <!-- Retweet Button -->
+            <button @onclick="ToggleRetweet" class="flex items-center gap-1 hover:text-green-500 transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 fill-current text-green-500" viewBox="0 0 20 20">
+                    <path d="M7 7v6h4l-5 5-5-5h4V7h2zM13 13V7h-4l5-5 5 5h-4v6h-2z"/>
+                </svg>
+                <span>@tweetViewModel.RetweetsCount</span>
+            </button>
+
+            <!-- Like Button -->
+            <button @onclick="ToggleLike" class="flex items-center gap-1 hover:text-red-500 transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 fill-current text-red-500" viewBox="0 0 20 20">
+                    <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 18.343l-6.828-6.829a4 4 0 010-5.656z"/>
+                </svg>
+                <span>@tweetViewModel.LikesCount</span>
+            </button>
+
+            <!-- Users Who Liked Button -->
+            <button @onclick="ShowLikedUsers" class="flex items-center gap-1 hover:text-blue-500 transition-colors duration-200">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 fill-current text-blue-500" viewBox="0 0 20 20">
+                    <path d="M10 2a5 5 0 00-5 5c0 1.657 1.567 3.667 5 6.5 3.433-2.833 5-4.843 5-6.5a5 5 0 00-5-5zm0 8a3 3 0 110-6 3 3 0 010 6z"/>
+                </svg>
+                <span>Liked by Users</span>
+            </button>
+        </div>
+    </a>
+
+</div>
+
+<!-- what is happening section -->
+
+<div class="flex flex-row px-6 py-4 items-center gap-4 border-b-gray-500/50 border-b-[0.1px] w-full">
+
+    <!-- Left: Avatar + Input -->
+    <div class="flex gap-4 items-center w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200 cursor-pointer">
+        <img src="./assets/image.png" alt="User Avatar" class="w-12 h-12 rounded-full object-cover"/>
+        <input
+            class="flex-grow text-xl text-gray-500 dark:text-gray-400 bg-transparent outline-none border-none focus:outline-none focus:ring-0 placeholder-gray-400 dark:placeholder-gray-500"
+            placeholder="Post your reply"
+            onclick="event.stopPropagation();"/>
+    </div>
+
+    <!-- Right: Reply Button -->
+    <div class="flex-shrink-0">
+        <button
+            class="dark:bg-[#eff3f4] bg-black rounded-full sm:px-4 px-3 py-1 dark:text-black text-white font-semibold">
+            Reply
+        </button>
+    </div>
+</div>
+
+<!-- end of what is happening section -->
+
+@if (replies.Count == 0)
+{
+    <div class="text-[#536471] text-sm text-center italic py-10 px-15">
+        No replies found
+    </div>
+}
+else
+{
+    @foreach (var item in replies)
+    {
+        <TweetCard tweet="item"/>
+    }
+}
+
+
+
+
+@code {
+
+    [Parameter]
+    public string id { get; set; }
+    
+    TweetViewModel tweetViewModel = new();
+
+    
+    CreateTweetViewModel _createTweetViewModel = new ()
+    {
+        UserId = Guid.Parse("0572fbf2-f1db-42cf-96e7-d54781bf0880"),
+    };
+
+
+    [Inject]
+    public ITweetService _tweetService { get; set; }
+
+
+    List<TweetViewModel> replies = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        replies.Clear();
+
+        var tweetDvo = await _tweetService.GetTweet(id);
+
+        tweetViewModel = new TweetViewModel
+        {
+            Id = tweetDvo.Id,
+            Content = tweetDvo.Content,
+            Time = tweetDvo.CreatedDate.ToString("g"),
+            ProfileName = tweetDvo.UserDisplayName,
+            MediaUrl = tweetDvo.MediaUrl,
+            ProfilePic = tweetDvo.UserProfilePic,
+            Username = tweetDvo.UserUsername,
+            LikesCount = tweetDvo.LikeCount,
+            RepliesCount = tweetDvo.RepliesCount,
+            RetweetsCount = tweetDvo.RetweetCount,
+        };
+
+        var dvo = await _tweetService.GetTweetReplies(id, 1, 10);
+
+        var tweetModels = dvo.Select(item => new TweetViewModel
+        {
+            Id = item.Id,
+            Content = item.Content,
+            MediaUrl = item.MediaUrl,
+            LikesCount = item.LikeCount,
+            ProfileName = item.UserDisplayName,
+            ProfilePic = item.UserProfilePic,
+            RepliesCount = item.RepliesCount,
+            RetweetsCount = item.RetweetCount,
+            Time = item.CreatedDate.ToString("g"),
+            Username = item.UserUsername,
+        });
+
+        replies.AddRange(tweetModels);
+    }
+
+    private void ShowReplies()
+    {
+    // Show a modal, toggle a reply panel, or navigate
+    //Console.WriteLine($"Show replies for tweet {tweet.Id}");
+    }
+
+    private void ToggleLike()
+    {
+    // Call API or change state
+    // Console.WriteLine($"Liked tweet {tweet.Id}");
+    //tweet.LikesCount++;
+    //StateHasChanged();
+    }
+
+    private void ShowLikedUsers()
+    {
+        Navigation.NavigateTo("/tweet/" + id + "/likes");
+    }
+
+    private void ToggleRetweet()
+    {
+    // Call API or change state
+    // Console.WriteLine($"Liked tweet {tweet.Id}");
+    //tweet.LikesCount++;
+    //StateHasChanged();
+    }
+
+
+
+}

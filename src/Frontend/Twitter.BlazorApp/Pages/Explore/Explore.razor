@@ -1,0 +1,17 @@
+@page "/search/{searchItem}"
+
+<h3>Search</h3>
+
+@code {
+    
+    [Parameter]
+    public string searchItem { get; set; }
+
+    protected override Task OnParametersSetAsync()
+    {
+        
+        
+        return base.OnParametersSetAsync();
+    }
+
+}
