@@ -1,10 +1,25 @@
 @page "/tweet/{id}"
 
+
+
+@* VULNERABILITY: XSS via MarkupString bypass (CWE-79) *@
+<div class="user-bio">
+    @((MarkupString)UntrustedUserBio)
+</div>
+
+@code {
+    // In a real app, this would come from the database/API unencoded
+    public string UntrustedUserBio { get; set; } = "<img src=x onerror=alert('Snyk_XSS_Detected') />";
+}
+
+
 @inject NavigationManager Navigation
 
 
 @using Twitter.BlazorApp.Infrastructure.Services.Interfaces
 @using Twitter.BlazorApp.Infrastructure.Models.ViewModels
+
+
 
 <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
     <button class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200" onclick="history.back()">

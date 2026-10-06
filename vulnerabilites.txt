@@ -8,3 +8,165 @@ In the file explorer on the left, locate the API backend folder (likely named We
 Inside its Controllers folder, create a new file named InsecureProfileController.cs
 
 Paste this code into it:
+
+
+1. Frontend Layer: Cross-Site Scripting (XSS) in Blazor
+Blazor normally protects against XSS by encoding HTML. We will intentionally bypass this to render raw, untrusted user input.
+
+Navigate to the frontend UI project (e.g., TwitterClone.UI or similar).
+
+Open any .razor component, such as Pages/Index.razor or a Tweet component.
+/Users/asutosh/Documents/Twitter clone/src/Frontend/Twitter.BlazorApp/Pages/Tweet/Tweet.razor
+
+added vulnerability here 
+
+Add this code block at the top of the file to simulate rendering an unencoded user bio:
+
+@* VULNERABILITY: XSS via MarkupString bypass (CWE-79) *@
+<div class="user-bio">
+    @((MarkupString)UntrustedUserBio)
+</div>
+
+@code {
+    // In a real app, this would come from the database/API unencoded
+    public string UntrustedUserBio { get; set; } = "<img src=x onerror=alert('Snyk_XSS_Detected') />";
+}
+
+2. Infrastructure Layer: Entity Framework SQL Injection
+Modern .NET uses Entity Framework (EF) Core, which prevents SQL injection by default. We will forcefully write a raw, concatenated query.
+
+Navigate to the backend's Data/Infrastructure project.
+
+Find any Repository class or create a new one: Infrastructure/Repositories/VulnerableRepository.cs.
+
+Add this code:
+
+using Microsoft.EntityFrameworkCore;
+using System.Linq;
+
+namespace TwitterClone.Infrastructure.Repositories;
+
+public class VulnerableRepository
+{
+    private readonly DbContext _context;
+    
+    public VulnerableRepository(DbContext context)
+    {
+        _context = context;
+    }
+
+    public object GetUserBadly(string username)
+    {
+        // VULNERABILITY: EF Core SQL Injection via raw string concatenation (CWE-89)
+        string query = $"SELECT * FROM AspNetUsers WHERE UserName = '{username}'";
+        
+        // Snyk will detect this because it uses FromSqlRaw instead of parameterized inputs
+        return _context.Database.SqlQueryRaw<int>(query).ToList();
+    }
+}
+
+
+3. Core Logic Layer: Server-Side Request Forgery (SSRF) & XXE
+We will add a utility service that fetches images from URLs (SSRF) and parses XML (XXE).
+
+Navigate to the Application/Core project.
+
+Create a file named Application/Services/MediaProcessingService.cs.
+
+1.Find your WebAPI Folder:Locate the API project folder.Look at the file explorer sidebar on the left side of VS Code. Find the main backend folder where your Controllers live (it is likely named WebAPI, TwitterClone.WebAPI, or API).2.Create a Services Folder:Organize the new code.Right-click on that WebAPI folder and select New Folder.Name the new folder Services.3.Create the C# File:Add the vulnerable file.Right-click your newly created Services folder and select New File.Name it exactly MediaProcessingService.cs.
+
+Add this code:
+
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Xml;
+
+namespace TwitterClone.Application.Services;
+
+public class MediaProcessingService
+{
+    public async Task<string> DownloadProfilePictureAsync(string userProvidedUrl)
+    {
+        // VULNERABILITY: SSRF (Server-Side Request Forgery) (CWE-918)
+        // Untrusted URL is fetched by the server without validation (could access internal IPs)
+        using var client = new HttpClient();
+        var response = await client.GetStringAsync(userProvidedUrl); 
+        return response;
+    }
+
+    public void ParseUserMetadata(string xmlContent)
+    {
+        // VULNERABILITY: XML External Entity (XXE) Injection (CWE-611)
+        // Enabling DtdProcessing.Parse allows external entity resolution
+        var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Parse };
+        
+        using var stringReader = new System.IO.StringReader(xmlContent);
+        using var xmlReader = XmlReader.Create(stringReader, settings);
+        
+        while (xmlReader.Read()) { }
+    }
+}
+
+4. API Layer: Open Redirect & Insecure Deserialization
+Navigate to the API project (WebAPI).
+
+Open any Controller (or create WebAPI/Controllers/AuthController.cs).
+
+Add these endpoints:
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+
+namespace TwitterClone.WebAPI.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class AuthController : ControllerBase
+{
+    [HttpGet("redirect")]
+    public IActionResult LoginRedirect([FromQuery] string returnUrl)
+    {
+        // VULNERABILITY: Open Redirect (CWE-601)
+        // Attackers can trick users into clicking a link to the real API that redirects to a malicious site
+        return Redirect(returnUrl);
+    }
+
+    [HttpPost("deserialize")]
+    public IActionResult ProcessWebhook([FromBody] string untrustedJson)
+    {
+        // VULNERABILITY: Insecure Deserialization (CWE-502)
+        // Using TypeNameHandling.All allows an attacker to instantiate arbitrary classes
+        var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+        var obj = JsonConvert.DeserializeObject(untrustedJson, settings);
+        
+        return Ok();
+    }
+}
+
+
+5. Configuration Layer: Hardcoded Secrets
+Navigate to the API project (WebAPI).
+
+Open appsettings.json (or appsettings.Development.json).
+
+Add hardcoded, highly sensitive credentials directly into the JSON. Snyk scans configuration files for high-entropy secrets.
+
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "SendGrid": {
+    "ApiKey": "SG.xxxxxxxxxxxxxxxxxxxxxx.yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  },
+  "JwtSettings": {
+    "Secret": "super_secret_jwt_key_that_should_never_be_committed_12345!"
+  }
+}
+
+
+git add .
+git commit -m "Scatter XSS, EF Core SQLi, SSRF, XXE, Open Redirect, and config secrets across layers"
+git push origin vulnerable-sast-demo
